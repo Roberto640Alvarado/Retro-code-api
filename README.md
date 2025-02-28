@@ -39,7 +39,7 @@ MONGO_URI=
 
 ### 1️⃣ Clonar el repositorio
 ```plaintext
-git clone https://github.com/ProyectoGraduacionUCA/retro-code-api.git
+https://github.com/Roberto640Alvarado/Retro-code-api.git
 ```
 
 ```plaintext
