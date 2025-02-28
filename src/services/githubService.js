@@ -104,16 +104,37 @@ export const fetchWorkflowJobs = async (repo, runId) => {
 
 //Función para obtener el contenido de un repositorio
 export const fetchRepoContent = async (repo) => {
-    const readmeUrl = `https://api.github.com/repos/${ORG_NAME}/${repo}/contents/README.md`;
-    const codeUrl = `https://api.github.com/repos/${ORG_NAME}/${repo}/contents/triangulo.cpp`;
+    try {
+        //Obtener el listado de archivos en el repositorio
+        const repoContentsUrl = `https://api.github.com/repos/${ORG_NAME}/${repo}/contents/`;
+        const contentsResponse = await axios.get(repoContentsUrl, { headers: GITHUB_HEADERS });
 
-    const readmeResponse = await axios.get(readmeUrl, { headers: GITHUB_HEADERS });
-    const codeResponse = await axios.get(codeUrl, { headers: GITHUB_HEADERS });
+        //Filtrar archivos con terminación .cpp
+        const cppFiles = contentsResponse.data.filter(file => file.name.endsWith(".cpp"));
 
-    return {
-        readme: Buffer.from(readmeResponse.data.content, "base64").toString(),
-        code: Buffer.from(codeResponse.data.content, "base64").toString(),
-    };
+        if (cppFiles.length === 0) {
+            throw new Error("No se encontró ningún archivo .cpp en el repositorio.");
+        }
+
+        // Seleccionar el primer archivo .cpp encontrado
+        const codeUrl = cppFiles[0].download_url;
+
+        //Obtener el contenido del README.md
+        const readmeUrl = `https://api.github.com/repos/${ORG_NAME}/${repo}/contents/README.md`;
+        const readmeResponse = await axios.get(readmeUrl, { headers: GITHUB_HEADERS });
+
+        //Obtener el contenido del archivo .cpp seleccionado
+        const codeResponse = await axios.get(codeUrl);
+
+        return {
+            readme: Buffer.from(readmeResponse.data.content, "base64").toString(),
+            code: codeResponse.data,
+
+        };
+    } catch (error) {
+        console.error("Error obteniendo contenido del repositorio:", error.message);
+        return null;
+    }
 };
 
 //Función para actualizar o crear el feedback en la rama feedback
