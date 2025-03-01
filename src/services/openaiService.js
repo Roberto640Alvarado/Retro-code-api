@@ -37,13 +37,18 @@ ${code}
    - 🟡 **Oportunidades de mejora**: ¿Qué aspectos del código pueden mejorarse?
    - 🔴 **Errores y correcciones**: Explica los errores encontrados con ejemplos claros y una versión corregida del código si es necesario.
 
-📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
-
+📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. 
+   No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
 `;
+// Este usuario se utiliza en el modelo de deepseek-reasoner
+   const userPrompt = "Por favor, proporciona una evaluación detallada del código proporcionado.";
+
 
     const response = await deepseek.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [{ role: "system", content: prompt }],
+      model: "deepseek-reasoner",//deepseek-reasoner  ||  deepseek-chat
+      messages: [{ role: "system", content: prompt },
+        { role: "user", content: userPrompt } // Este usuario se utiliza en el modelo de deepseek-reasoner
+      ],
       temperature: 1,
       top_p: 0.95,
     });
