@@ -1,24 +1,16 @@
 import "dotenv/config";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import Feedback from "../models/Feedback.js";
 
-//Cliente de Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Configurar el cliente de DeepSeek
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export const generateOpenAIFeedback = async (repo, readme, code, grade) => {
   try {
-
-    const generationConfig = {
-      temperature: 1,
-      top_p: 0.95,
-      top_k: 40,
-      max_output_tokens: 8192,
-      response_mime_type: "text/plain",
-    };
-
-    //Prompt mejorado con la nota obtenida
     const prompt = `
-🎓 **Evaluación Automática de Código en C++**
+    🎓 **Evaluación Automática de Código en C++**
 Eres un asistente especializado en evaluar código en C++. A continuación, se presentan los datos del estudiante:
 
 📌 **Enunciado del ejercicio**:
@@ -44,32 +36,38 @@ ${code}
    - 🟡 **Oportunidades de mejora**: ¿Qué aspectos del código pueden mejorarse?
    - 🔴 **Errores y correcciones**: Explica los errores encontrados con ejemplos claros y una versión corregida del código si es necesario.
 
-📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
+📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. 
+   No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
 `;
 
-    //Crear el modelo con la configuración
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
-      generationConfig,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", //"gpt-4o-mini" | "gpt-4o" | "gpt-4-turbo,
+      messages: [
+        { role: "system", content: prompt },
+        {
+          role: "user",
+          content:
+            "Por favor, proporciona una evaluación detallada del código proporcionado.",
+        },
+      ],
+      temperature: 0.7,
+      top_p: 0.95,
     });
 
-    //Enviar el mensaje al modelo
-    const response = await model.generateContent(prompt);
-
-    //Extraer el contenido de la respuesta
-    const feedback = response?.response?.text();
+    const feedback = response?.choices?.[0]?.message?.content || "No se pudo generar feedback.";
 
     //Guardar en MongoDB
     const feedbackData = new Feedback({
       repo,
-      feedback: feedback,
+      feedback,
     });
 
     await feedbackData.save();
     console.log("✅ Feedback guardado en MongoDB");
 
-    return feedback || "No se pudo generar feedback.";
+    return feedback;
   } catch (error) {
+    console.error("Error al generar la retroalimentación:", error);
     throw new Error("No se pudo generar la retroalimentación.");
   }
 };
