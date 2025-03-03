@@ -1,75 +1,54 @@
-import "dotenv/config";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai"; 
 import Feedback from "../models/Feedback.js";
 
-//Cliente de Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Configurar cliente de Ollama para usar CodeLlama:13b
+const ollama = new OpenAI({
+  baseURL: "http://localhost:11434/v1",  
+  apiKey: "ollama",
+});
 
 export const generateOpenAIFeedback = async (repo, readme, code, grade) => {
   try {
-
-    const generationConfig = {
-      temperature: 1,
-      top_p: 0.95,
-      top_k: 40,
-      max_output_tokens: 8192,
-      response_mime_type: "text/plain",
-    };
-
-    //Prompt mejorado con la nota obtenida
     const prompt = `
-🎓 **Evaluación Automática de Código en C++**
-Eres un asistente especializado en evaluar código en C++. A continuación, se presentan los datos del estudiante:
+    🎓 **Evaluación Automática de Código en C++**
+Eres un asistente experto en C++ encargado de evaluar código de estudiantes. Analiza el código enviado y proporciona retroalimentación detallada basada en:
 
-📌 **Enunciado del ejercicio**:
+✅ **Corrección:** ¿El código cumple con los requisitos del enunciado?  
+✅ **Eficiencia:** ¿Se puede optimizar en términos de rendimiento?  
+✅ **Legibilidad:** ¿Sigue buenas prácticas de estilo (Google C++ Style Guide)?  
+✅ **Errores:** Si hay errores, explica el problema y proporciona una versión corregida.  
+
+📌 **Enunciado del ejercicio:**  
 ${readme}
 
-📝 **Código enviado por el estudiante**:
+📝 **Código del estudiante:**  
 \`\`\`cpp
 ${code}
 \`\`\`
 
-📊 **Nota obtenida en GitHub Classroom**: ${grade}/10  
-*(Esta nota refleja la evaluación automática basada en pruebas unitarias y ejecución de código.)*
+📊 **Nota en pruebas unitarias:** ${grade}/10
 
-💡 **Objetivo de la Evaluación**:
-1. **Análisis de calidad del código**:
-   - ✅ **Eficiencia y optimización**: ¿El código es eficiente en términos de complejidad computacional?
-   - ✅ **Corrección**: ¿El código cumple con los requisitos del enunciado?
-   - ✅ **Legibilidad y buenas prácticas**: ¿Sigue convenciones como Google C++ Style Guide?
-   - ✅ **Pruebas unitarias**: ¿Por qué pudo haber fallado en las pruebas? Si hay errores, proporciona contraejemplos.
-
-2. **Retroalimentación Constructiva**:
-   - 🟢 **Puntos fuertes**: ¿Qué hizo bien el estudiante en su código?
-   - 🟡 **Oportunidades de mejora**: ¿Qué aspectos del código pueden mejorarse?
-   - 🔴 **Errores y correcciones**: Explica los errores encontrados con ejemplos claros y una versión corregida del código si es necesario.
-
-📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
+💡 **Importante:** No generes código nuevo si no es necesario. Solo analiza y da retroalimentación clara y concisa.
 `;
 
-    //Crear el modelo con la configuración
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
-      generationConfig,
+    const response = await ollama.chat.completions.create({
+      model: "codellama:13b", 
+      messages: [{ role: "system", content: prompt }],
+      temperature: 0.3, 
+      max_tokens: 1024,
     });
 
-    //Enviar el mensaje al modelo
-    const response = await model.generateContent(prompt);
+    const feedback = response?.choices?.[0]?.message?.content || "No se pudo generar feedback.";
 
-    //Extraer el contenido de la respuesta
-    const feedback = response?.response?.text();
-
-    //Guardar en MongoDB
-    const feedbackData = new Feedback({
-      repo,
-      feedback: feedback,
-    });
-
+    // Guardar en MongoDB
+    const feedbackData = new Feedback({ repo, feedback });
     await feedbackData.save();
     console.log("✅ Feedback guardado en MongoDB");
 
-    return feedback || "No se pudo generar feedback.";
+    return feedback;
   } catch (error) {
+    console.error("Error al generar la retroalimentación:", error);
     throw new Error("No se pudo generar la retroalimentación.");
   }
 };
+
