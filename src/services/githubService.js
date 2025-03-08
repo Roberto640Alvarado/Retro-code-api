@@ -137,44 +137,63 @@ export const fetchRepoContent = async (repo) => {
     }
 };
 
-//Función para actualizar o crear el feedback en la rama feedback
-export const updateFeedbackInPR = async (repo, feedbackText) => {
+// Función para crear un nuevo Pull Request
+export const createPullRequest = async (owner, repo, feedback) => {
     try {
-        //Verificar si el archivo feedback.md ya existe en la rama feedback
-        let fileSha = null;
-        try {
-            const { data: fileData } = await octokit.repos.getContent({
-                owner: ORG_NAME,
-                repo: repo,
-                path: FEEDBACK_FILE_PATH,
-                ref: FEEDBACK_BRANCH,
-            });
-            fileSha = fileData.sha; // Guardamos el SHA del archivo existente
-        } catch (error) {
-            console.log("📌 No se encontró feedback.md. Se creará uno nuevo.");
-        }
+        const branchName = `auto-feedback-${Date.now()}`; 
+        const baseBranch = "main"; 
 
-        //Formatear el feedback en Markdown
-        const formattedFeedback = `# 📌 Retroalimentación del Código\n\n${feedbackText}`;
-
-        //Crear o actualizar el archivo en la rama feedback
-        await octokit.repos.createOrUpdateFileContents({
-            owner: ORG_NAME,
-            repo: repo,
-            path: FEEDBACK_FILE_PATH,
-            message: "🔄 Actualizando feedback del código",
-            content: Buffer.from(formattedFeedback).toString("base64"),
-            sha: fileSha, 
-            branch: FEEDBACK_BRANCH, 
+        // Obtener el último commit de la rama base
+        const { data: baseRef } = await octokit.request(`GET /repos/{owner}/{repo}/git/ref/heads/${baseBranch}`, {
+            owner,
+            repo
         });
 
-        console.log(`✅ Feedback actualizado en el PR de ${repo}`);
-        return { success: true, message: "Feedback actualizado en la rama feedback." };
+        const baseSha = baseRef.object.sha;
+
+        //Crear una nueva rama desde el último commit de la rama base
+        await octokit.request(`POST /repos/{owner}/{repo}/git/refs`, {
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`,
+            sha: baseSha
+        });
+
+        console.log(`✅ Rama ${branchName} creada en ${repo}`);
+
+        //Crear un nuevo archivo `feedback.md` con el contenido del feedback
+        const feedbackContent = Buffer.from(feedback, "utf-8").toString("base64");
+
+        const { data: newFile } = await octokit.request(`PUT /repos/{owner}/{repo}/contents/feedback.md`, {
+            owner,
+            repo,
+            path: "feedback.md",
+            message: "Añadiendo archivo de feedback",
+            content: feedbackContent,
+            branch: branchName,
+            headers: GITHUB_HEADERS
+        });
+
+        //Crear el Pull Request
+        const response = await octokit.request(`POST /repos/{owner}/{repo}/pulls`, {
+            owner,
+            repo,
+            title: "Auto-generated Feedback PR",
+            head: branchName,
+            base: baseBranch,
+            body: "Este PR ha sido creado automáticamente para la retroalimentación.",
+            headers: GITHUB_HEADERS
+        });
+
+        console.log(`✅ Pull Request #${response.data.number} creado en ${repo}`);
+        return response.data.number;
     } catch (error) {
-        console.error(`❌ Error actualizando feedback en ${repo}:`, error.response?.data || error);
-        return { success: false, error: error.message };
+        console.error(`❌ Error creando PR en ${repo}:`, error.response?.data || error.message);
+        throw error;
     }
 };
+
+
 
 //Función para obtener el número de un Pull Request abierto
 export const getOpenPullRequest = async (owner, repo) => {
@@ -220,11 +239,15 @@ export const addCommentToPullRequest = async (owner, repo, pull_number, feedback
 //Función para enviar feedback a un Pull Request
 export const postFeedbackToPR = async (owner, repo, feedback) => {
     try {
-        const pull_number = await getOpenPullRequest(owner, repo);
+        let pull_number = await getOpenPullRequest(owner, repo);
+        
+        //Si no hay PR abierto, creamos uno nuevo
         if (!pull_number) {
-            throw new Error(`No se encontró un Pull Request abierto en ${repo}`);
+            console.log(`No hay PR abierto en ${repo}. Creando uno nuevo...`);
+            pull_number = await createPullRequest(owner, repo, feedback);
         }
 
+        //Agregar comentario con el feedback al PR
         return await addCommentToPullRequest(owner, repo, pull_number, feedback);
     } catch (error) {
         console.error("❌ Error procesando el feedback:", error.message);

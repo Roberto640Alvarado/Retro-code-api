@@ -5,9 +5,8 @@ import Feedback from "../models/Feedback.js";
 //Cliente de Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-export const generateOpenAIFeedback = async (repo, readme, code, grade) => {
+export const generateOpenAIFeedback = async (repo, readme, code) => {
   try {
-
     const generationConfig = {
       temperature: 1,
       top_p: 0.95,
@@ -18,38 +17,32 @@ export const generateOpenAIFeedback = async (repo, readme, code, grade) => {
 
     //Prompt mejorado con la nota obtenida
     const prompt = `
-🎓 **Evaluación Automática de Código en C++**
-Eres un asistente especializado en evaluar código en C++. A continuación, se presentan los datos del estudiante:
+🎓 **Retroalimentacion Automática de Código en C++**
+    Eres un profesor de Ingeniería Informática especializado en evaluar código en C++, debes de ser claro, preciso y orientado
+    al aprendizaje. Darás retroalimentación a estudiantes que están en un nivel principiante en la materia de **Estructuras Dinámicas**.
+    Actúa sabiendo que los criterios de una buena retroalimentación son los siguientes:
+    - 🟢 **Sugerencias**: Qué hacer y qué evitar al programar en C++.  
+    - ✅ **Verificación de requisitos**: ¿El código cumple con lo solicitado en el problema?  
+    - 📖 **Explicación con ejemplos**: Breve análisis de los conceptos evaluados con casos prácticos.  
+    - 🚨 **Errores detectados**: Identificación de fallos de **sintaxis, semántica y lógica**.  
+    - 🛠️ **Mejoras y correcciones**: Recomendaciones para optimizar el código.  
+    - ✍️ **Estilo y legibilidad**: Verifica si sigue las normas de **Google C++ Style Guide**.  
+    - 🤔 **Preguntas orientadoras**: Para fomentar la reflexión y el aprendizaje del estudiante. 
+    La retroalimentacion debe ser enfocada en los temas de: Loops for y condicionales
+    - 📊 **Nota final**: Evalúa la solución considerando los criterios anteriores y asigna una calificación objetiva. 
 
-📌 **Enunciado del ejercicio**:
-${readme}
+    📌 **Enunciado del problema**:
+    ${readme}
 
-📝 **Código enviado por el estudiante**:
-\`\`\`cpp
-${code}
-\`\`\`
-
-📊 **Nota obtenida en GitHub Classroom**: ${grade}/10  
-*(Esta nota refleja la evaluación automática basada en pruebas unitarias y ejecución de código.)*
-
-💡 **Objetivo de la Evaluación**:
-1. **Análisis de calidad del código**:
-   - ✅ **Eficiencia y optimización**: ¿El código es eficiente en términos de complejidad computacional?
-   - ✅ **Corrección**: ¿El código cumple con los requisitos del enunciado?
-   - ✅ **Legibilidad y buenas prácticas**: ¿Sigue convenciones como Google C++ Style Guide?
-   - ✅ **Pruebas unitarias**: ¿Por qué pudo haber fallado en las pruebas? Si hay errores, proporciona contraejemplos.
-
-2. **Retroalimentación Constructiva**:
-   - 🟢 **Puntos fuertes**: ¿Qué hizo bien el estudiante en su código?
-   - 🟡 **Oportunidades de mejora**: ¿Qué aspectos del código pueden mejorarse?
-   - 🔴 **Errores y correcciones**: Explica los errores encontrados con ejemplos claros y una versión corregida del código si es necesario.
-
-📜 **Nota**: Si generas código corregido, asegúrate de que sea limpio, eficiente y cumpla con las convenciones de **Google C++ Style Guide**. No uses \`using namespace std;\`. Este feedback es para estudiantes de **Programación de Estructuras Dinámicas**, por lo que las explicaciones deben ser claras y didácticas.
-`;
+    📝 **Código enviado por el estudiante**:
+    \`\`\`cpp
+    ${code}
+    \`\`\`
+    `;
 
     //Crear el modelo con la configuración
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
+      model: "gemini-2.0-flash-lite",
       generationConfig,
     });
 
