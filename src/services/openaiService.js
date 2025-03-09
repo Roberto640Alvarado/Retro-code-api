@@ -42,7 +42,7 @@ export const generateOpenAIFeedback = async (repo, readme, code) => {
 
     //Crear el modelo con la configuración
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-1.5-flash",
       generationConfig,
     });
 
